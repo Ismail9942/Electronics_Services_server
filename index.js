@@ -23,6 +23,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const servicesCollection = client.db("servicesDB").collection("services");
+    const bookNowCollection = client.db("bookNowDB").collection("bookNow");
 
     // save service data in db
     app.post("/service", async (req, res) => {
@@ -35,15 +36,63 @@ async function run() {
       const result = await servicesCollection.find().limit(6).toArray();
       res.send(result);
     });
-    app.get("/allServices", async (req, res) => {
-      const result = await servicesCollection.find().toArray();
+
+    app.get("/all-jobs", async (req, res) => {
+      const filter = req.query.filter;
+      const search = req.query.search;
+      const sort = req.query.sort;
+      let options = {};
+      if (sort) options = { sort: { deadline: sort === "asc" ? 1 : -1 } };
+      let query = {
+        title: {
+          $regex: search,
+          $options: "i",
+        },
+      };
+      if (filter) query.category = filter;
+      const result = await jobsCollection.find(query, options).toArray();
+      res.send(result);
+    });
+    app.get("/all-jobs", async (req, res) => {
+      const filter = req.query.filter;
+      const search = req.query.search;
+      const sort = req.query.sort;
+      let options = {};
+      if (sort) options = { sort: { deadline: sort === "asc" ? 1 : -1 } };
+      let query = {
+        title: {
+          $regex: search,
+          $options: "i",
+        },
+      };
+      if (filter) query.category = filter;
+      const result = await jobsCollection.find(query, options).toArray();
       res.send(result);
     });
 
+    // get all services from db
+    app.get("/allServices", async (req, res) => {
+      const search = req.query.search;
+      let option = {};
+      if (search) {
+        option = { title: { $regex: search, $options: "i" } };
+      }
+
+      const result = await servicesCollection.find(option).toArray();
+      res.send(result);
+    });
+    // get single id from db
     app.get("/services/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await servicesCollection.findOne(query);
+      res.send(result);
+    });
+
+    // save book now data in db
+    app.post("/bookNow", async (req, res) => {
+      const bookData = req.body;
+      const result = await bookNowCollection.insertOne(bookData);
       res.send(result);
     });
 
