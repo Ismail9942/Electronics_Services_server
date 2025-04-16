@@ -9,10 +9,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // Middleware setup
 const corsOptions = {
-  origin: [
-    "http://localhost:5173",
-    "https://freelancer-services-18d2f.firebaseapp.com",
-  ],
+  origin: ["https://freelancer-services-18d2f.web.app"],
   credentials: true,
   optionsSuccessStatus: 200,
 };
