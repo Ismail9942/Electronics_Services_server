@@ -50,8 +50,6 @@ const verifyToken = (req, res, next) => {
 
 async function run() {
   try {
-    await client.connect();
-
     const servicesCollection = client.db("servicesDB").collection("services");
     const bookNowCollection = client.db("bookNowDB").collection("bookNow");
 
