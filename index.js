@@ -9,11 +9,13 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // Middleware setup
 const corsOptions = {
-  origin: ["http://localhost:5173"],
+  origin: [
+    "http://localhost:5173",
+    "https://freelancer-services-18d2f.firebaseapp.com",
+  ],
   credentials: true,
   optionsSuccessStatus: 200,
 };
-
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
@@ -100,17 +102,41 @@ async function run() {
         res.status(500).send({ message: "Failed to fetch services" });
       }
     });
+
+    // get all data in db
+
     app.get("/allServices", async (req, res) => {
       try {
-        const search = req.query.search;
-        let option = {};
-        if (search) {
-          option = { title: { $regex: search, $options: "i" } };
+        const search = req.query.search || "";
+        let query = {};
+
+        if (search.trim()) {
+          query = {
+            $or: [
+              { title: { $regex: search, $options: "i" } },
+              { description: { $regex: search, $options: "i" } },
+              { category: { $regex: search, $options: "i" } },
+            ],
+          };
         }
-        const result = await servicesCollection.find(option).toArray();
-        res.send(result);
+
+        const services = await servicesCollection.find(query).toArray();
+
+        if (services.length === 0) {
+          return res.status(404).json({
+            success: false,
+            message: "No services found matching your search",
+          });
+        }
+
+        res.status(200).json(services);
       } catch (error) {
-        res.status(500).send({ message: "Failed to fetch services" });
+        console.error("Error fetching services:", error);
+        res.status(500).json({
+          success: false,
+          message: "Failed to fetch services",
+          error: error.message,
+        });
       }
     });
 
@@ -134,23 +160,26 @@ async function run() {
         updated,
         options
       );
-      console.log(result);
 
       res.send(result);
     });
 
     // delete db
-    app.delete("/service/:id", async (req, res) => {
+    app.delete("/service-delete/:id", async (req, res) => {
       const id = req.params.id;
 
       const query = { _id: new ObjectId(id) };
-      const result = await servicesCollection.findOne(query);
+      const result = await servicesCollection.deleteOne(query);
       res.send(result);
     });
 
     // get all services posted by specific user
-    app.get("/services/:email", async (req, res) => {
+    app.get("/my-services", verifyToken, async (req, res) => {
+      const decodedEmail = req.user?.email;
       const email = req.query.email;
+
+      if (decodedEmail !== email)
+        return res.status(401).send({ message: "unauthorized access" });
 
       const query = { "provider.email": email };
 
@@ -158,18 +187,52 @@ async function run() {
       res.send(result);
     });
 
-    // bookNow Endpoints
+    // save to book now collection db
+
     app.post("/bookNow", async (req, res) => {
       try {
         const booking = req.body;
+        const query = {
+          email: booking.userEmail,
+          serviceId: booking.serviceId,
+        };
+
+        const allreadyExist = await bookNowCollection.findOne(query);
+        if (allreadyExist) {
+          return res
+            .status(400)
+            .send("you have already placed a bid on this service!");
+        }
+
         const result = await bookNowCollection.insertOne(booking);
+
+        const filter = { _id: new ObjectId(booking.serviceId) };
+        const update = {
+          $inc: { bid_count: 1 },
+        };
+
+        await servicesCollection(filter, update);
+
         res.status(201).send(result);
       } catch (error) {
-        console.error("Error creating booking:", error);
         res.status(500).send({ message: "Failed to create booking" });
       }
     });
 
+    // status update in db
+
+    app.patch("/status-update/:id", async (req, res) => {
+      const id = req.params.id;
+      const { status } = req.body;
+
+      const filter = { _id: new ObjectId(id) };
+      const updated = {
+        $set: { status },
+      };
+      const result = await bookNowCollection.updateOne(filter, updated);
+      res.send(result);
+    });
+
     app.get("/myBook", async (req, res) => {
       try {
         const email = req.query.email;
@@ -181,9 +244,11 @@ async function run() {
         res.status(500).send({ message: "Failed to fetch bookNow" });
       }
     });
+
     app.get("/myBook", async (req, res) => {
       try {
         const email = req.query.email;
+
         const query = { userEmail: email };
         const result = await bookNowCollection.find(query).toArray();
         res.send(result);
@@ -193,32 +258,29 @@ async function run() {
       }
     });
 
-    app.get("/bookNow", async (req, res) => {
+    // get specific email in db
+
+    app.get("/bookNow/:email", verifyToken, async (req, res) => {
       try {
-        const email = req.query.email;
+        const provider = req.query.provider;
+        const email = req.params.email;
+        const decodedEmail = req.user?.email;
 
-        const query = { providerEmail: email };
-        const result = await bookNowCollection.find(query).toArray();
-
-        if (!result.length) {
-          return res.status(404).send({ message: "No bookNow found" });
+        if (!decodedEmail || decodedEmail !== email) {
+          return res.status(401).send({ message: "unauthorized access" });
         }
-
+        let query = {};
+        if (provider) {
+          query.provider = email;
+        } else {
+          query.email = email;
+        }
+        const result = await bookNowCollection.find(query).toArray();
         res.send(result);
       } catch (error) {
         console.error("Error fetching user bookNow:", error);
         res.status(500).send({ message: "Failed to fetch bookNow" });
       }
-    });
-
-    app.patch("/updateStatus/:id", async (req, res) => {
-      const id = req.params.id;
-      const { status } = req.body;
-      const filter = { _id: new ObjectId(id) };
-      const updated = { $set: { status } };
-      const result = await bookNowCollection.updateOne(filter, updated);
-
-      res.send(result);
     });
 
     //   // Start the server
