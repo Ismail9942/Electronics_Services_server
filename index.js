@@ -295,7 +295,7 @@ app.listen(port, () => {
 app.get("/", (req, res) => {
   res.send("Freelancer Services Server is Running!");
 });
-process.on("unhandledRejection", (err) => {
-  console.error(`Unhandled Rejection: ${err}`);
-  process.exit(1);
-});
+// process.on("unhandledRejection", (err) => {
+//   console.error(`Unhandled Rejection: ${err}`);
+//   process.exit(1);
+// });
