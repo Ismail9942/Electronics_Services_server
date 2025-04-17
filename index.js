@@ -9,7 +9,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // Middleware setup
 const corsOptions = {
-  origin: ["https://freelancer-services-18d2f.web.app"],
+  origin: ["https://freelancer-service-server.vercel.app/"],
   credentials: true,
   optionsSuccessStatus: 200,
 };
