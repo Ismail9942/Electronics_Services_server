@@ -9,7 +9,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 // Middleware setup
 const corsOptions = {
-  origin: ["https://freelancer-service-server.vercel.app/"],
+  origin: ["https://freelancer-services-18d2f.firebaseapp.com"],
   credentials: true,
   optionsSuccessStatus: 200,
 };
@@ -62,7 +62,6 @@ async function run() {
           httpOnly: true,
           secure: process.env.NODE_ENV === "production",
           sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
-          maxAge: 2 * 60 * 60 * 1000, // 2 hours
         })
         .send({ success: true });
     });
@@ -200,15 +199,7 @@ async function run() {
         }
 
         const result = await bookNowCollection.insertOne(booking);
-
-        const filter = { _id: new ObjectId(booking.serviceId) };
-        const update = {
-          $inc: { bid_count: 1 },
-        };
-
-        await servicesCollection(filter, update);
-
-        res.status(201).send(result);
+        res.send(result);
       } catch (error) {
         res.status(500).send({ message: "Failed to create booking" });
       }
